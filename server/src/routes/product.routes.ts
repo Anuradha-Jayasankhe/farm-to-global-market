@@ -8,7 +8,9 @@ import {
   deleteProduct,
   getMyProducts,
   addReview,
-  updateStock
+  updateStock,
+  approveProduct,
+  rejectProduct
 } from '../controllers/product.controller';
 
 const router = Router();
@@ -25,5 +27,9 @@ router.put('/:id', updateProduct);
 router.delete('/:id', deleteProduct);
 router.post('/:id/reviews', addReview);
 router.put('/:id/stock', updateStock);
+
+// Admin only routes
+router.put('/:id/approve', authorize('admin'), approveProduct);
+router.put('/:id/reject', authorize('admin'), rejectProduct);
 
 export default router;

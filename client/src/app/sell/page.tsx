@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { apiClient } from '@/lib/api-client';
 import {
   ArrowLeft,
   Upload,
@@ -83,44 +84,64 @@ export default function SellProductPage() {
     setIsSubmitting(true);
 
     try {
-      const token = localStorage.getItem('token');
-      const formDataToSend = new FormData();
-
-      // Append all form fields
-      formDataToSend.append('name', formData.name);
-      formDataToSend.append('category', formData.category);
-      formDataToSend.append('description', formData.description);
-      formDataToSend.append('price', formData.price);
-      formDataToSend.append('unit', formData.unit);
-      formDataToSend.append('quantity', formData.quantity);
-      formDataToSend.append('location', formData.location);
-      formDataToSend.append('harvestDate', formData.harvestDate);
-      formDataToSend.append('organic', String(formData.organic));
-
-      // Append images
-      formData.images.forEach((image) => {
-        formDataToSend.append('images', image);
-      });
-
-      const response = await fetch('http://localhost:5000/api/products', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formDataToSend,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create product');
+      // Validate required fields
+      if (!formData.name || !formData.category || !formData.price || !formData.quantity) {
+        alert('Please fill in all required fields');
+        setIsSubmitting(false);
+        return;
       }
 
-      setShowSuccess(true);
-      setTimeout(() => {
-        router.push('/dashboard/farmer');
-      }, 2000);
-    } catch (error) {
+      // Parse location (city, state, country)
+      const locationParts = formData.location.split(',').map(s => s.trim());
+      const city = locationParts[0] || 'Unknown';
+      const state = locationParts[1] || 'Unknown';
+      const country = locationParts[2] || 'India';
+
+      // Prepare product data
+      const productData = {
+        name: formData.name,
+        description: formData.description,
+        category: formData.category.toLowerCase(),
+        price: parseFloat(formData.price),
+        unit: formData.unit,
+        stock: parseInt(formData.quantity),
+        isInStock: parseInt(formData.quantity) > 0,
+        minOrder: 1,
+        currency: 'USD',
+        location: {
+          city,
+          state,
+          country
+        },
+        isOrganic: formData.organic,
+        isCertified: formData.organic,
+        certifications: formData.organic ? ['Organic'] : [],
+        marketType: 'local',
+        shipping: {
+          available: true,
+          estimatedDays: 3
+        },
+        images: formData.images.length > 0 ? ['https://via.placeholder.com/400'] : [],
+        thumbnail: 'https://via.placeholder.com/400',
+        tags: [formData.category],
+        isApproved: false, // Needs admin approval
+        isActive: true
+      };
+
+      // Create product using API client
+      const response = await apiClient.products.create(productData);
+
+      if (response.success) {
+        setShowSuccess(true);
+        setTimeout(() => {
+          router.push('/dashboard/farmer');
+        }, 2000);
+      } else {
+        throw new Error(response.message || 'Failed to create product');
+      }
+    } catch (error: any) {
       console.error('Error creating product:', error);
-      alert('Failed to create product. Please try again.');
+      alert(`Failed to create product: ${error.message || 'Please try again'}`);
     } finally {
       setIsSubmitting(false);
     }

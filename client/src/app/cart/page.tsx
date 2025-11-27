@@ -9,55 +9,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
-
-interface CartItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  image: string;
-  seller: string;
-}
+import { useCart } from '@/context/CartContext';
 
 export default function CartPage() {
-  const [cartItems, setCartItems] = useState<CartItem[]>([
-    {
-      id: '1',
-      name: 'Organic Mango Dried Slices',
-      price: 15.99,
-      quantity: 2,
-      image: '/products/mango.jpg',
-      seller: 'John Farmer',
-    },
-    {
-      id: '2',
-      name: 'Premium Banana Chips',
-      price: 8.99,
-      quantity: 3,
-      image: '/products/banana.jpg',
-      seller: 'Maria Rodriguez',
-    },
-  ]);
+  const { items, removeItem, updateQuantity, total, itemCount } = useCart();
 
-  const updateQuantity = (id: string, change: number) => {
-    setCartItems(items =>
-      items.map(item =>
-        item.id === id
-          ? { ...item, quantity: Math.max(1, item.quantity + change) }
-          : item
-      )
-    );
-  };
+  const shipping = items.length > 0 ? 5.99 : 0;
+  const grandTotal = total + shipping;
 
-  const removeItem = (id: string) => {
-    setCartItems(items => items.filter(item => item.id !== id));
-  };
-
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shipping = 5.99;
-  const total = subtotal + shipping;
-
-  if (cartItems.length === 0) {
+  if (items.length === 0) {
     return (
       <>
         <Navbar />
@@ -96,36 +56,33 @@ export default function CartPage() {
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
-              {cartItems.map((item, index) => (
+              {items.map((item, index) => (
                 <motion.div
                   key={item.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <Card className="hover-lift">
+                  <Card>
                     <CardContent className="p-6">
-                      <div className="flex gap-6">
-                        {/* Product Image */}
-                        <div className="w-24 h-24 bg-gray-200 dark:bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <span className="text-4xl">🥭</span>
+                      <div className="flex gap-4">
+                        <div className="w-24 h-24 bg-gray-200 dark:bg-gray-800 rounded-lg flex items-center justify-center shrink-0">
+                          <span className="text-4xl">{item.category === 'fruits' ? '🍎' : '🥬'}</span>
                         </div>
 
-                        {/* Product Info */}
                         <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+                          <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">
                             {item.name}
                           </h3>
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                            Sold by: {item.seller}
+                            Sold by {item.seller.name}
                           </p>
-                          <p className="text-lg font-bold text-primary">
-                            ${item.price.toFixed(2)}
+                          <p className="text-lg font-bold text-green-600">
+                            ${item.price.toFixed(2)} <span className="text-sm text-gray-500">/ {item.unit}</span>
                           </p>
                         </div>
 
-                        {/* Quantity Controls */}
-                        <div className="flex flex-col items-end justify-between">
+                        <div className="flex flex-col items-end gap-4">
                           <button
                             onClick={() => removeItem(item.id)}
                             className="text-gray-400 hover:text-red-600 transition-colors"
@@ -135,16 +92,16 @@ export default function CartPage() {
 
                           <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
                             <button
-                              onClick={() => updateQuantity(item.id, -1)}
+                              onClick={() => updateQuantity(item.id, Math.max(1, item.cartQuantity - 1))}
                               className="p-1 hover:bg-white dark:hover:bg-gray-700 rounded transition-colors"
                             >
                               <Minus className="w-4 h-4" />
                             </button>
                             <span className="w-8 text-center font-medium">
-                              {item.quantity}
+                              {item.cartQuantity}
                             </span>
                             <button
-                              onClick={() => updateQuantity(item.id, 1)}
+                              onClick={() => updateQuantity(item.id, item.cartQuantity + 1)}
                               className="p-1 hover:bg-white dark:hover:bg-gray-700 rounded transition-colors"
                             >
                               <Plus className="w-4 h-4" />
@@ -169,7 +126,7 @@ export default function CartPage() {
                   <div className="space-y-3 mb-6">
                     <div className="flex justify-between text-gray-700 dark:text-gray-300">
                       <span>Subtotal</span>
-                      <span>${subtotal.toFixed(2)}</span>
+                      <span>${total.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-gray-700 dark:text-gray-300">
                       <span>Shipping</span>
@@ -178,7 +135,7 @@ export default function CartPage() {
                     <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
                       <div className="flex justify-between text-lg font-bold text-gray-900 dark:text-white">
                         <span>Total</span>
-                        <span>${total.toFixed(2)}</span>
+                        <span>${grandTotal.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>

@@ -2,29 +2,59 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { ShoppingCart, MapPin, Star, Badge as BadgeIcon } from 'lucide-react';
+import { ShoppingCart, MapPin, Star, Badge as BadgeIcon, Globe, Package } from 'lucide-react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Product } from '@/types';
 import { formatCurrency } from '@/lib/utils';
+import { useCart } from '@/context/CartContext';
+import { useState } from 'react';
 
 interface ProductCardProps {
   product: Product;
   viewMode?: 'grid' | 'list';
 }
 
+const getCategoryEmoji = (category: string) => {
+  const emojiMap: Record<string, string> = {
+    fruits: '🍎',
+    vegetables: '🥬',
+    grains: '🌾',
+    spices: '🌶️',
+    dehydrated: '🫐',
+    dairy: '🥛',
+    accessories: '🛠️',
+    organic: '🌱',
+  };
+  return emojiMap[category] || '📦';
+};
+
 export default function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
+  const { addItem } = useCart();
+  const [added, setAdded] = useState(false);
+
+  const handleAddToCart = () => {
+    addItem(product, product.minOrder || 1);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2000);
+  };
   if (viewMode === 'list') {
     return (
       <Card className="hover-lift transition-all">
         <div className="flex flex-col md:flex-row">
           <div className="relative w-full md:w-48 h-48 shrink-0">
             <div className="w-full h-full bg-gradient-to-br from-green-100 to-yellow-100 dark:from-gray-700 dark:to-gray-600 rounded-t-lg md:rounded-l-lg md:rounded-tr-none flex items-center justify-center">
-              <span className="text-6xl">{product.category === 'fruits' ? '🍎' : '🥬'}</span>
+              <span className="text-6xl">{getCategoryEmoji(product.category)}</span>
             </div>
             {product.tags.includes('organic') && (
               <Badge className="absolute top-2 left-2 bg-green-600">Organic</Badge>
+            )}
+            {product.isExportQuality && (
+              <Badge className="absolute top-2 right-2 bg-blue-600">
+                <Globe className="w-3 h-3 mr-1" />
+                Export Quality
+              </Badge>
             )}
           </div>
           <div className="flex-1 p-6">
@@ -57,9 +87,13 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
                 </span>
                 <span>{product.quantity} {product.unit} available</span>
               </div>
-              <Button className="bg-gradient-primary hover:opacity-90 text-white">
+              <Button 
+                onClick={handleAddToCart}
+                disabled={added}
+                className="bg-gradient-primary hover:opacity-90 text-white"
+              >
                 <ShoppingCart className="w-4 h-4 mr-2" />
-                Add to Cart
+                {added ? 'Added!' : 'Add to Cart'}
               </Button>
             </div>
           </div>
@@ -72,13 +106,22 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
     <Card className="hover-lift transition-all h-full flex flex-col">
       <div className="relative w-full h-48">
         <div className="w-full h-full bg-gradient-to-br from-green-100 to-yellow-100 dark:from-gray-700 dark:to-gray-600 rounded-t-lg flex items-center justify-center">
-          <span className="text-6xl">{product.category === 'fruits' ? '🍎' : product.category === 'vegetables' ? '🥬' : '🌾'}</span>
+          <span className="text-6xl">{getCategoryEmoji(product.category)}</span>
         </div>
         {product.tags.includes('organic') && (
           <Badge className="absolute top-2 right-2 bg-green-600">Organic</Badge>
         )}
-        {product.tags.includes('export-ready') && (
-          <Badge className="absolute top-2 left-2 bg-blue-600">Export Ready</Badge>
+        {product.isExportQuality && (
+          <Badge className="absolute top-2 left-2 bg-blue-600 flex items-center gap-1">
+            <Globe className="w-3 h-3" />
+            Export
+          </Badge>
+        )}
+        {product.category === 'accessories' && (
+          <Badge className="absolute bottom-2 left-2 bg-purple-600 flex items-center gap-1">
+            <Package className="w-3 h-3" />
+            Accessory
+          </Badge>
         )}
       </div>
       
@@ -114,8 +157,14 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
           </p>
           <p className="text-xs text-gray-500">per {product.unit}</p>
         </div>
-        <Button size="sm" className="bg-gradient-primary hover:opacity-90 text-white">
+        <Button 
+          size="sm" 
+          onClick={handleAddToCart}
+          disabled={added}
+          className="bg-gradient-primary hover:opacity-90 text-white"
+        >
           <ShoppingCart className="w-4 h-4" />
+          {added && <span className="ml-1 text-xs">✓</span>}
         </Button>
       </CardFooter>
     </Card>

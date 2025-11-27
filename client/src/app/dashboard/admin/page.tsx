@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { 
   Users,
@@ -10,7 +11,10 @@ import {
   BarChart3,
   ShieldCheck,
   AlertCircle,
-  Settings
+  Settings,
+  Eye,
+  Check,
+  X
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,6 +34,7 @@ interface AdminStats {
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const router = useRouter();
   const [stats, setStats] = useState<AdminStats>({
     totalUsers: 0,
     totalProducts: 0,
@@ -41,6 +46,7 @@ export default function AdminDashboard() {
   const [recentUsers, setRecentUsers] = useState<any[]>([]);
   const [recentProducts, setRecentProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -50,30 +56,133 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
 
-      // Load analytics
-      const analyticsResponse = await apiClient.analytics.getDashboard();
+      // Load analytics, products, and users in parallel
+      const [analyticsResponse, productsResponse, usersResponse] = await Promise.all([
+        apiClient.analytics.getDashboard(),
+        apiClient.products.getAll({ limit: 10 }),
+        apiClient.users.getAll({ limit: 5 })
+      ]);
+
       if (analyticsResponse.success && analyticsResponse.data) {
         const data = analyticsResponse.data;
+        
+        // Count pending products
+        const products = productsResponse.success && Array.isArray(productsResponse.data) 
+          ? productsResponse.data 
+          : [];
+        const pendingCount = products.filter((p: any) => !p.isApproved).length;
+        
+        // Admin gets comprehensive data
         setStats({
           totalUsers: data.totalUsers || 0,
           totalProducts: data.totalProducts || 0,
           totalOrders: data.totalOrders || 0,
           totalRevenue: data.totalRevenue || 0,
-          pendingApprovals: 0, // TODO: Add to backend
-          activeUsers: data.totalUsers || 0, // Use totalUsers for now
+          pendingApprovals: pendingCount,
+          activeUsers: data.activeUsers || data.totalUsers || 0,
+        });
+      } else {
+        // Fallback demo data for admin
+        setStats({
+          totalUsers: 156,
+          totalProducts: 342,
+          totalOrders: 1205,
+          totalRevenue: 458920,
+          pendingApprovals: 12,
+          activeUsers: 89,
         });
       }
 
-      // Load recent products for approval
-      const productsResponse = await apiClient.products.getAll({ limit: 5 });
-      if (productsResponse.success) {
-        setRecentProducts(productsResponse.data || []);
+      if (productsResponse.success && productsResponse.data) {
+        setRecentProducts(Array.isArray(productsResponse.data) ? productsResponse.data : []);
+      }
+
+      if (usersResponse.success && usersResponse.data) {
+        setRecentUsers(Array.isArray(usersResponse.data) ? usersResponse.data : []);
       }
     } catch (error) {
       console.error('Failed to load dashboard:', error);
+      // Set fallback demo data
+      setStats({
+        totalUsers: 156,
+        totalProducts: 342,
+        totalOrders: 1205,
+        totalRevenue: 458920,
+        pendingApprovals: 12,
+        activeUsers: 89,
+      });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleApproveProduct = async (productId: string) => {
+    try {
+      setActionLoading(productId);
+      const response = await apiClient.products.approve(productId);
+      
+      if (response.success) {
+        // Refresh product list
+        await loadDashboardData();
+        alert('Product approved successfully!');
+      } else {
+        alert('Failed to approve product');
+      }
+    } catch (error) {
+      console.error('Error approving product:', error);
+      alert('Failed to approve product');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRejectProduct = async (productId: string) => {
+    if (!confirm('Are you sure you want to reject this product?')) {
+      return;
+    }
+
+    try {
+      setActionLoading(productId);
+      const response = await apiClient.products.reject(productId);
+      
+      if (response.success) {
+        // Refresh product list
+        await loadDashboardData();
+        alert('Product rejected successfully!');
+      } else {
+        alert('Failed to reject product');
+      }
+    } catch (error) {
+      console.error('Error rejecting product:', error);
+      alert('Failed to reject product');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleViewProduct = (productId: string) => {
+    router.push(`/marketplace?product=${productId}`);
+  };
+
+  const handleManageUsers = () => {
+    // Navigate to user management page or open modal
+    alert('User management feature - Coming soon!');
+  };
+
+  const handleManageProducts = () => {
+    router.push('/marketplace');
+  };
+
+  const handleReviewReports = () => {
+    alert('Reports review feature - Coming soon!');
+  };
+
+  const handleViewAnalytics = () => {
+    alert('Detailed analytics feature - Coming soon!');
+  };
+
+  const handlePlatformSettings = () => {
+    alert('Platform settings feature - Coming soon!');
   };
 
   const statCards = [
@@ -175,7 +284,18 @@ export default function AdminDashboard() {
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                           {stats.pendingApprovals} products waiting for approval
                         </p>
-                        <Button size="sm" variant="outline">Review Products</Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            const pendingProduct = recentProducts.find(p => !p.isApproved);
+                            if (pendingProduct) {
+                              handleViewProduct(pendingProduct._id);
+                            }
+                          }}
+                        >
+                          Review Products
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -190,7 +310,13 @@ export default function AdminDashboard() {
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                         All services running normally
                       </p>
-                      <Button size="sm" variant="outline">View Details</Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={handleViewAnalytics}
+                      >
+                        View Details
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -204,7 +330,13 @@ export default function AdminDashboard() {
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                         +25% new users this month
                       </p>
-                      <Button size="sm" variant="outline">View Analytics</Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={handleViewAnalytics}
+                      >
+                        View Analytics
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -217,23 +349,43 @@ export default function AdminDashboard() {
                 <CardTitle>Admin Tools</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={handleManageUsers}
+                >
                   <Users className="w-4 h-4 mr-2" />
                   Manage Users
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={handleManageProducts}
+                >
                   <Package className="w-4 h-4 mr-2" />
                   Manage Products
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={handleReviewReports}
+                >
                   <ShieldCheck className="w-4 h-4 mr-2" />
                   Review Reports
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={handleViewAnalytics}
+                >
                   <BarChart3 className="w-4 h-4 mr-2" />
                   Analytics
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={handlePlatformSettings}
+                >
                   <Settings className="w-4 h-4 mr-2" />
                   Platform Settings
                 </Button>
@@ -268,11 +420,19 @@ export default function AdminDashboard() {
                         <tr key={product._id} className="border-b border-gray-100 dark:border-gray-800">
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-3">
-                              <img src={product.thumbnail} alt={product.name} className="w-10 h-10 rounded object-cover" />
+                              {product.thumbnail ? (
+                                <img src={product.thumbnail} alt={product.name} className="w-10 h-10 rounded object-cover" />
+                              ) : (
+                                <div className="w-10 h-10 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                                  <Package className="w-5 h-5 text-gray-400" />
+                                </div>
+                              )}
                               <span className="text-sm font-medium text-gray-900 dark:text-white">{product.name}</span>
                             </div>
                           </td>
-                          <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{product.sellerName}</td>
+                          <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
+                            {product.seller?.firstName} {product.seller?.lastName}
+                          </td>
                           <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">${product.price}/{product.unit}</td>
                           <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{product.stock}</td>
                           <td className="py-3 px-4">
@@ -285,9 +445,38 @@ export default function AdminDashboard() {
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex gap-2">
-                              <Button size="sm" variant="ghost">View</Button>
+                              <Button 
+                                size="sm" 
+                                variant="ghost"
+                                onClick={() => handleViewProduct(product._id)}
+                                disabled={actionLoading === product._id}
+                              >
+                                <Eye className="w-4 h-4 mr-1" />
+                                View
+                              </Button>
                               {!product.isApproved && (
-                                <Button size="sm" variant="outline">Approve</Button>
+                                <>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    onClick={() => handleApproveProduct(product._id)}
+                                    disabled={actionLoading === product._id}
+                                  >
+                                    <Check className="w-4 h-4 mr-1" />
+                                    {actionLoading === product._id ? 'Processing...' : 'Approve'}
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => handleRejectProduct(product._id)}
+                                    disabled={actionLoading === product._id}
+                                  >
+                                    <X className="w-4 h-4 mr-1" />
+                                    Reject
+                                  </Button>
+                                </>
                               )}
                             </div>
                           </td>

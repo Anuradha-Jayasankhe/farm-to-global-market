@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { apiClient } from '@/lib/api-client';
 import {
   ArrowLeft,
   Upload,
@@ -84,38 +85,63 @@ export default function SellAccessoriesPage() {
     setIsSubmitting(true);
 
     try {
-      const token = localStorage.getItem('token');
-      const formDataToSend = new FormData();
-
-      // Append all form fields
-      Object.entries(formData).forEach(([key, value]) => {
-        if (key !== 'images') {
-          formDataToSend.append(key, value.toString());
-        }
-      });
-
-      // Append images
-      formData.images.forEach((image) => {
-        formDataToSend.append('images', image);
-      });
-
-      const response = await fetch('http://localhost:5000/api/accessories', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formDataToSend,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create accessory');
+      // Validate required fields
+      if (!formData.name || !formData.category || !formData.price || !formData.quantity) {
+        alert('Please fill in all required fields');
+        setIsSubmitting(false);
+        return;
       }
 
-      setShowSuccess(true);
-      setTimeout(() => {
-        router.push('/dashboard/accessories-seller');
-      }, 2000);
-    } catch (error) {
+      // Parse location
+      const locationParts = formData.location.split(',').map(s => s.trim());
+      const city = locationParts[0] || 'Unknown';
+      const state = locationParts[1] || 'Unknown';
+      const country = locationParts[2] || 'India';
+
+      // Prepare accessory product data
+      const productData = {
+        name: formData.name,
+        description: formData.description,
+        category: 'accessories',
+        subcategory: formData.category,
+        price: parseFloat(formData.price),
+        unit: formData.unit,
+        stock: parseInt(formData.quantity),
+        isInStock: parseInt(formData.quantity) > 0,
+        minOrder: 1,
+        currency: 'USD',
+        location: {
+          city,
+          state,
+          country
+        },
+        isOrganic: false,
+        isCertified: formData.warranty ? true : false,
+        certifications: formData.warranty ? [`${formData.warranty} Warranty`] : [],
+        marketType: 'accessories',
+        shipping: {
+          available: true,
+          estimatedDays: 5
+        },
+        images: formData.images.length > 0 ? ['https://via.placeholder.com/400'] : [],
+        thumbnail: 'https://via.placeholder.com/400',
+        tags: [formData.category, 'accessories', 'farm equipment'],
+        isApproved: false,
+        isActive: true
+      };
+
+      // Create accessory using API client
+      const response = await apiClient.products.create(productData);
+
+      if (response.success) {
+        setShowSuccess(true);
+        setTimeout(() => {
+          router.push('/dashboard/accessories-seller');
+        }, 2000);
+      } else {
+        throw new Error(response.message || 'Failed to create accessory');
+      }
+    } catch (error: any) {
       console.error('Error creating accessory:', error);
       alert('Failed to create accessory. Please try again.');
     } finally {

@@ -217,6 +217,18 @@ export const apiClient = {
         method: 'DELETE',
       });
     },
+
+    approve: async (id: string): Promise<ApiResponse> => {
+      return apiFetch(`/products/${id}/approve`, {
+        method: 'PUT',
+      });
+    },
+
+    reject: async (id: string): Promise<ApiResponse> => {
+      return apiFetch(`/products/${id}/reject`, {
+        method: 'PUT',
+      });
+    },
   },
 
   // Orders
@@ -396,6 +408,55 @@ export const apiClient = {
 
     getProducts: async (): Promise<ApiResponse> => {
       return apiFetch('/analytics/products');
+    },
+
+    getUsers: async (): Promise<ApiResponse> => {
+      return apiFetch('/analytics/users');
+    },
+
+    getRevenue: async (): Promise<ApiResponse> => {
+      return apiFetch('/analytics/revenue');
+    },
+  },
+
+  // Users (Admin)
+  users: {
+    getAll: async (params?: {
+      page?: number;
+      limit?: number;
+      role?: string;
+      search?: string;
+    }): Promise<ApiResponse> => {
+      const query = params ? `?${new URLSearchParams(params as any)}` : '';
+      return apiFetch(`/users${query}`);
+    },
+
+    getById: async (id: string): Promise<ApiResponse> => {
+      return apiFetch(`/users/${id}`);
+    },
+
+    getProfile: async (): Promise<ApiResponse> => {
+      return apiFetch('/users/me');
+    },
+
+    updateProfile: async (data: any): Promise<ApiResponse> => {
+      return apiFetch('/users/me', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+
+    update: async (id: string, data: any): Promise<ApiResponse> => {
+      return apiFetch(`/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+
+    delete: async (id: string): Promise<ApiResponse> => {
+      return apiFetch(`/users/${id}`, {
+        method: 'DELETE',
+      });
     },
   },
 

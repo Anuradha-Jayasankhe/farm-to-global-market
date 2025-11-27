@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
+import { apiClient } from '@/lib/api-client';
+import { useAuth } from '@/context/AuthContext';
 
 const mockRecommendations = [
   {
@@ -45,13 +47,45 @@ const mockRecommendations = [
 export default function AICropPlannerPage() {
   const [step, setStep] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [error, setError] = useState('');
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [formData, setFormData] = useState({
+    location: '',
+    landSize: '',
+    soilType: '',
+    waterAvailability: '',
+    budget: '',
+  });
+  const { isAuthenticated } = useAuth();
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
+    if (!isAuthenticated) {
+      setError('Please login to use AI features');
+      return;
+    }
+
     setIsAnalyzing(true);
-    setTimeout(() => {
-      setIsAnalyzing(false);
+    setError('');
+
+    try {
+      const response = await apiClient.ai.cropPlanner(formData);
+      
+      if (response.success && response.data) {
+        setRecommendations(response.data.recommendations || response.data);
+        setStep(2);
+      } else {
+        // Fallback to mock data for demo
+        setRecommendations(mockRecommendations);
+        setStep(2);
+      }
+    } catch (err: any) {
+      console.error('AI Crop Planner Error:', err);
+      setError('Using sample recommendations. Connect to backend for AI-powered results.');
+      setRecommendations(mockRecommendations);
       setStep(2);
-    }, 3000);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   return (
@@ -89,6 +123,12 @@ export default function AICropPlannerPage() {
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  {error && (
+                    <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                      <p className="text-sm text-yellow-800 dark:text-yellow-400">{error}</p>
+                    </div>
+                  )}
+
                   {/* Land Photo Upload */}
                   <div>
                     <label className="block text-sm font-medium mb-2">Land Photo</label>
@@ -103,47 +143,61 @@ export default function AICropPlannerPage() {
                   {/* Form Grid */}
                   <div className="grid md:grid-cols-2 gap-6">
                     <div>
+                      <label className="block text-sm font-medium mb-2">Location</label>
+                      <Input 
+                        type="text" 
+                        placeholder="City, State"
+                        value={formData.location}
+                        onChange={(e) => setFormData({...formData, location: e.target.value})}
+                      />
+                    </div>
+                    <div>
                       <label className="block text-sm font-medium mb-2">Land Size (acres)</label>
-                      <Input type="number" placeholder="5" />
+                      <Input 
+                        type="number" 
+                        placeholder="5"
+                        value={formData.landSize}
+                        onChange={(e) => setFormData({...formData, landSize: e.target.value})}
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">Soil Type</label>
-                      <select className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800">
-                        <option>Clay</option>
-                        <option>Sandy</option>
-                        <option>Loamy</option>
-                        <option>Silty</option>
+                      <select 
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                        value={formData.soilType}
+                        onChange={(e) => setFormData({...formData, soilType: e.target.value})}
+                      >
+                        <option value="">Select soil type</option>
+                        <option value="clay">Clay</option>
+                        <option value="sandy">Sandy</option>
+                        <option value="loamy">Loamy</option>
+                        <option value="silty">Silty</option>
                       </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        <MapPin className="w-4 h-4 inline mr-1" />
-                        Location
-                      </label>
-                      <Input placeholder="City, State" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">
                         <Droplets className="w-4 h-4 inline mr-1" />
                         Water Availability
                       </label>
-                      <select className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800">
-                        <option>Abundant</option>
-                        <option>Moderate</option>
-                        <option>Limited</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Farming Type</label>
-                      <select className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800">
-                        <option>Organic</option>
-                        <option>Conventional</option>
-                        <option>Mixed</option>
+                      <select 
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                        value={formData.waterAvailability}
+                        onChange={(e) => setFormData({...formData, waterAvailability: e.target.value})}
+                      >
+                        <option value="">Select availability</option>
+                        <option value="abundant">Abundant</option>
+                        <option value="moderate">Moderate</option>
+                        <option value="limited">Limited</option>
                       </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">Budget (Optional)</label>
-                      <Input type="number" placeholder="$5,000" />
+                      <Input 
+                        type="number" 
+                        placeholder="$5,000"
+                        value={formData.budget}
+                        onChange={(e) => setFormData({...formData, budget: e.target.value})}
+                      />
                     </div>
                   </div>
 

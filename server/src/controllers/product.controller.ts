@@ -320,3 +320,68 @@ export const updateStock = async (req: Request, res: Response) => {
     });
   }
 };
+
+// @desc    Approve product (Admin only)
+// @route   PUT /api/v1/products/:id/approve
+// @access  Private/Admin
+export const approveProduct = async (req: Request, res: Response) => {
+  try {
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    product.isApproved = true;
+    await product.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Product approved successfully',
+      data: product
+    });
+  } catch (error: any) {
+    logger.error('Approve product error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Reject product (Admin only)
+// @route   PUT /api/v1/products/:id/reject
+// @access  Private/Admin
+export const rejectProduct = async (req: Request, res: Response) => {
+  try {
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    product.isApproved = false;
+    product.isActive = false;
+    await product.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Product rejected successfully',
+      data: product
+    });
+  } catch (error: any) {
+    logger.error('Reject product error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};

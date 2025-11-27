@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   User,
@@ -21,19 +21,92 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
+import { apiClient } from '@/lib/api-client';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ProfilePage() {
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState({
-    name: 'John Farmer',
-    email: 'john.farmer@example.com',
-    phone: '+1 (555) 123-4567',
-    location: 'Karnataka, India',
-    farmName: 'Green Valley Farm',
-    farmSize: '50 acres',
-    crops: 'Mango, Banana, Rice',
-    bio: 'Organic farmer with 15 years of experience. Passionate about sustainable agriculture and quality produce.',
+    name: '',
+    email: '',
+    phone: '',
+    location: '',
+    farmName: '',
+    farmSize: '',
+    crops: '',
+    bio: '',
   });
+
+  useEffect(() => {
+    loadProfile();
+  }, [user]);
+
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.users.getProfile();
+      
+      if (response.success && response.data) {
+        setProfile({
+          name: response.data.name || user?.name || '',
+          email: response.data.email || user?.email || '',
+          phone: response.data.phone || '',
+          location: response.data.location || '',
+          farmName: response.data.farmName || '',
+          farmSize: response.data.farmSize || '',
+          crops: response.data.crops || '',
+          bio: response.data.bio || '',
+        });
+      } else if (user) {
+        // Fallback to user data from auth context
+        setProfile({
+          name: user.name || '',
+          email: user.email || '',
+          phone: user.phone || '',
+          location: user.location || '',
+          farmName: user.farmName || '',
+          farmSize: '',
+          crops: '',
+          bio: '',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load profile:', error);
+      // Use auth context data as fallback
+      if (user) {
+        setProfile({
+          name: user.name || '',
+          email: user.email || '',
+          phone: user.phone || '',
+          location: user.location || '',
+          farmName: user.farmName || '',
+          farmSize: '',
+          crops: '',
+          bio: '',
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      const response = await apiClient.users.updateProfile(profile);
+      
+      if (response.success) {
+        setIsEditing(false);
+        alert('Profile updated successfully!');
+      } else {
+        alert('Failed to update profile. Please try again.');
+      }
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      alert('Failed to update profile. Please try again.');
+    }
+  };
 
   return (
     <>
@@ -67,7 +140,13 @@ export default function ProfilePage() {
                       </p>
                     </div>
                     <Button
-                      onClick={() => setIsEditing(!isEditing)}
+                      onClick={() => {
+                        if (isEditing) {
+                          handleSaveProfile();
+                        } else {
+                          setIsEditing(true);
+                        }
+                      }}
                       variant={isEditing ? 'default' : 'outline'}
                       className={isEditing ? 'bg-gradient-primary text-white' : ''}
                     >

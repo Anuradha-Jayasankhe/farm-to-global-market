@@ -74,6 +74,7 @@ export interface Product {
   seller: User;
   status: ProductStatus;
   tags: string[];
+  isExportQuality?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

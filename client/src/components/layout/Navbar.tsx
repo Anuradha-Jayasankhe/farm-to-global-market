@@ -9,6 +9,7 @@ import ThemeToggle from '@/components/shared/ThemeToggle';
 import { useAuth } from '@/context/AuthContext';
 
 const navLinks = [
+  { name: 'Marketplace', href: '/marketplace' },
   { name: 'Features', href: '/#features' },
   { name: 'How It Works', href: '/how-it-works' },
   { name: 'Pricing', href: '/pricing' },
